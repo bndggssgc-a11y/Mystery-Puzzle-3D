@@ -1,0 +1,50 @@
+
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+
+    steps:
+      - name: Download project
+        uses: actions/checkout@v4
+
+      - name: Extract game
+        run: |
+          mkdir -p game output
+          ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ZIP file not found"
+            exit 1
+          fi
+          unzip -q "$ZIP_FILE" -d game
+
+      - name: Find Godot project
+        run: |
+          PROJECT_FILE=$(find game -name project.godot | head -n 1)
+          if [ -z "$PROJECT_FILE" ]; then
+            echo "project.godot not found"
+            exit 1
+          fi
+          echo "PROJECT_DIR=$(dirname "$PROJECT_FILE")" >> "$GITHUB_ENV"
+
+      - name: Build Android APK
+        run: |
+          mkdir -p output
+          cd "$PROJECT_DIR"
+          godot --headless --editor --path . --quit
+          godot --headless --path . --export-debug "Android" "$GITHUB_WORKSPACE/output/MysteryPuzzle3D.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mystery-Puzzle-3D-APK
+          path: output/MysteryPuzzle3D.apk
